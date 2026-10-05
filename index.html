@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mais Açaí — Dashboard de Vendas</title>
+
+<!-- Firebase SDK: depois você vai colocar suas configurações abaixo -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+  import {
+    getFirestore,
+    collection,
+    addDoc,
+    getDocs,
+    doc,
+    deleteDoc,
+    updateDoc,
+    query,
+    orderBy,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+
+  /*
+    ============================================================
+    CONFIGURAÇÃO FIREBASE
+    ============================================================
+    Quando você me mandar suas informações do Firebase,
+    substituiremos este bloco pelos dados reais.
+
+    Exemplo:
+
+    const firebaseConfig = {
+      apiKey: "SUA_KEY",
+      authDomain: "SEU_PROJETO.firebaseapp.com",
+      projectId: "SEU_PROJETO",
+      storageBucket: "SEU_PROJETO.firebasestorage.app",
+      messagingSenderId: "SEU_ID",
+      appId: "SEU_APP_ID"
+    };
+  */
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAvfetd_z2xa7ei1Gs3VMmvXUumMe0cKfM",
+    authDomain: "acai-203bb.firebaseapp.com",
+    projectId: "acai-203bb",
+    storageBucket: "acai-203bb.firebasestorage.app",
+    messagingSenderId: "429068383980",
+    appId: "1:429068383980:web:d2fe6a2064f707272e57c9",
+    measurementId: "G-KG6TV4492M"
+  };
+
+  window.firebaseReady = false;
+  window.firebaseDB = null;
+  window.firebaseFns = {};
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.firebaseDB = db;
+    window.firebaseReady = !Object.values(firebaseConfig).some(v => v === "COLOCAR_AQUI");
+
+    window.firebaseFns = {
+      collection,
+      addDoc,
+      getDocs,
+      doc,
+      deleteDoc,
+      updateDoc,
+      query,
+      orderBy,
+      serverTimestamp
+    };
+
+    window.dispatchEvent(new Event("firebase-loaded"));
+  } catch (error) {
+    console.error("Firebase ainda não configurado:", error);
+    window.dispatchEvent(new Event("firebase-error"));
+  }
+</script>
+
+<style>
+:root{
+  --purple:#5d1b78;
+  --purple-dark:#431253;
+  --purple-light:#f4edf7;
+  --bg:#f7f5f8;
+  --white:#fff;
+  --text:#242024;
+  --muted:#77727a;
+  --border:#e7e2e9;
+  --green:#20b45a;
+  --red:#d94b4b;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:235px;
+  background:linear-gradient(180deg,var(--purple-dark),var(--purple));
+  color:#fff;
+  padding:24px 16px;
+  position:fixed;
+  inset:0 auto 0 0;
+}
+.brand{font-size:24px;font-weight:800;padding:8px 10px 3px}
+.brand-sub{font-size:12px;opacity:.75;padding:0 10px 28px}
+.nav button{
+  display:block;
+  width:100%;
+  text-align:left;
+  background:transparent;
+  border:0;
+  color:#fff;
+  padding:13px 14px;
+  border-radius:12px;
+  margin:5px 0;
+  font-weight:700;
+}
+.nav button:hover,.nav button.active{background:rgba(255,255,255,.14)}
+.firebase-status{
+  position:absolute;
+  left:20px;
+  right:20px;
+  bottom:22px;
+  padding:9px 10px;
+  border-radius:10px;
+  background:rgba(255,255,255,.10);
+  font-size:11px;
+}
+.status-dot{
+  display:inline-block;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#f0b44c;
+  margin-right:5px;
+}
+.status-dot.online{background:#55d982}
+main{
+  margin-left:235px;
+  width:calc(100% - 235px);
+  padding:28px;
+}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:15px;
+  margin-bottom:22px;
+}
+h1{margin:0;font-size:28px}
+.subtitle{color:var(--muted);margin-top:5px;font-size:14px}
+.btn{
+  border:0;
+  border-radius:11px;
+  padding:11px 16px;
+  font-weight:700;
+}
+.btn-primary{background:var(--purple);color:#fff}
+.btn-primary:hover{background:var(--purple-dark)}
+.btn-light{background:#fff;border:1px solid var(--border)}
+.kpis{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin-bottom:18px;
+}
+.card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:18px;
+  box-shadow:0 4px 15px rgba(67,18,83,.04);
+}
+.kpi-label{font-size:13px;color:var(--muted)}
+.kpi-value{font-size:25px;font-weight:800;margin-top:8px}
+.kpi-note{font-size:11px;color:var(--muted);margin-top:5px}
+.grid{
+  display:grid;
+  grid-template-columns:1.7fr 1fr;
+  gap:18px;
+  margin-bottom:18px;
+}
+.card-title{font-weight:800;margin-bottom:15px}
+.chart{
+  height:280px;
+  display:flex;
+  align-items:flex-end;
+  gap:8px;
+  padding:15px 5px 28px;
+  border-bottom:1px solid var(--border);
+}
+.bar-wrap{
+  flex:1;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  align-items:center;
+  min-width:0;
+}
+.bar{
+  width:100%;
+  max-width:42px;
+  background:var(--purple);
+  border-radius:7px 7px 0 0;
+  min-height:3px;
+}
+.bar-label{
+  font-size:10px;
+  color:var(--muted);
+  margin-top:7px;
+  white-space:nowrap;
+}
+.bar-value{
+  font-size:9px;
+  color:var(--purple-dark);
+  margin-bottom:4px;
+  white-space:nowrap;
+}
+.payment-list{display:flex;flex-direction:column;gap:13px}
+.payment-row{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.payment-track{height:7px;background:#eee8f0;border-radius:10px;margin-top:5px}
+.payment-fill{height:100%;background:var(--purple);border-radius:10px}
+.table-wrap{overflow:auto}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th,.table td{
+  padding:11px 8px;
+  border-bottom:1px solid #eee;
+  text-align:left;
+  white-space:nowrap;
+}
+.table th{
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+}
+.empty{text-align:center;color:var(--muted);padding:28px}
+.badge{
+  display:inline-block;
+  padding:5px 8px;
+  border-radius:20px;
+  background:var(--purple-light);
+  color:var(--purple);
+  font-size:11px;
+  font-weight:700;
+}
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(20,10,25,.5);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+  z-index:30;
+}
+.modal.show{display:flex}
+.modal-box{
+  background:#fff;
+  border-radius:18px;
+  width:min(650px,100%);
+  max-height:90vh;
+  overflow:auto;
+  padding:22px;
+}
+.modal-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:18px;
+}
+.modal-head h2{margin:0}
+.close{
+  border:0;
+  background:#f3f0f4;
+  border-radius:50%;
+  width:34px;
+  height:34px;
+  font-size:20px;
+}
+.form-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.field label{
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  margin-bottom:5px;
+}
+.field input,.field select{
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:11px;
+  outline:none;
+}
+.field input:focus,.field select:focus{border-color:var(--purple)}
+.full{grid-column:1/-1}
+.modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+}
+.toast{
+  position:fixed;
+  right:22px;
+  top:22px;
+  z-index:50;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:15px;
+  box-shadow:0 12px 35px rgba(67,18,83,.18);
+  padding:14px 17px;
+  max-width:350px;
+  display:none;
+}
+.toast.show{display:block}
+.toast strong{display:block;color:var(--purple-dark);font-size:13px}
+.toast span{font-size:12px;color:var(--muted)}
+.status-select{
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:6px 8px;
+  font-size:12px;
+  font-weight:700;
+  background:#fff;
+  cursor:pointer;
+}
+.status-select.status-paid{border-color:#9bd7b0;color:#137a38;background:#eefaf2}
+.status-select.status-pending{border-color:#e4c77d;color:#8a6200;background:#fff9e9}
+.status-select.status-debt{border-color:#9bbce0;color:#245d91;background:#eef6ff}
+@media(max-width:950px){
+  .kpis{grid-template-columns:1fr 1fr}
+  .grid{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+  .app{display:block}
+  .sidebar{position:static;width:100%}
+  .firebase-status{position:static;margin-top:20px}
+  main{margin-left:0;width:100%;padding:18px}
+  .topbar{align-items:flex-start;flex-direction:column}
+  .form-grid{grid-template-columns:1fr}
+  .full{grid-column:auto}
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">Mais Açaí</div>
+    <div class="brand-sub">Painel de vendas</div>
+
+    <div class="nav">
+      <button class="active">📊 Dashboard</button>
+      <button onclick="openSaleModal()">＋ Registrar venda</button>
+    </div>
+
+    <div class="firebase-status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="firebaseStatus">Aguardando Firebase...</span>
+    </div>
+  </aside>
+
+  <main>
+
+    <div class="topbar">
+      <div>
+        <h1>Dashboard</h1>
+        <div class="subtitle">Resumo das vendas do Mais Açaí</div>
+      </div>
+
+      <button class="btn btn-primary" onclick="openSaleModal()">
+        ＋ Nova venda
+      </button>
+    </div>
+
+    <div class="kpis">
+
+      <div class="card">
+        <div class="kpi-label">Faturamento</div>
+        <div class="kpi-value" id="revenue">R$ 0,00</div>
+        <div class="kpi-note">total das vendas</div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label">Vendas</div>
+        <div class="kpi-value" id="orders">0</div>
+        <div class="kpi-note">pedidos registrados</div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label">Ticket médio</div>
+        <div class="kpi-value" id="ticket">R$ 0,00</div>
+        <div class="kpi-note">média por venda</div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label">Vendas hoje</div>
+        <div class="kpi-value" id="today">R$ 0,00</div>
+        <div class="kpi-note">faturamento de hoje</div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label">Recebido</div>
+        <div class="kpi-value" id="paidTotal">R$ 0,00</div>
+        <div class="kpi-note">vendas com status Pago</div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label">Pendente</div>
+        <div class="kpi-value" id="pendingTotal">R$ 0,00</div>
+        <div class="kpi-note">aguardando pagamento</div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label">Débito</div>
+        <div class="kpi-value" id="debtTotal">R$ 0,00</div>
+        <div class="kpi-note">vendas em débito</div>
+      </div>
+
+    </div>
+
+    <div class="grid">
+
+      <div class="card">
+        <div class="card-title">Vendas por dia</div>
+        <div class="chart" id="salesChart">
+          <div class="empty">Nenhuma venda registrada ainda.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Formas de pagamento</div>
+        <div class="payment-list" id="paymentList">
+          <div class="empty">Nenhuma venda registrada ainda.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="card">
+      <div class="card-title">Últimas vendas</div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Cliente</th>
+              <th>Produto</th>
+              <th>Pagamento</th>
+              <th>Status</th>
+              <th>Origem</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+
+          <tbody id="salesTable">
+            <tr>
+              <td colspan="7" class="empty">Nenhuma venda registrada.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL DE VENDA MANUAL -->
+
+<div class="modal" id="saleModal">
+
+  <div class="modal-box">
+
+    <div class="modal-head">
+      <h2>Registrar venda</h2>
+      <button class="close" onclick="closeSaleModal()">×</button>
+    </div>
+
+    <form id="saleForm">
+
+      <div class="form-grid">
+
+        <div class="field">
+          <label>Data</label>
+          <input id="saleDate" type="date" required>
+        </div>
+
+        <div class="field">
+          <label>Cliente</label>
+          <input id="saleCustomer" placeholder="Nome do cliente">
+        </div>
+
+        <div class="field">
+          <label>Produto</label>
+          <input id="saleProduct" placeholder="Ex.: Açaí 300ml" required>
+        </div>
+
+        <div class="field">
+          <label>Quantidade</label>
+          <input id="saleQty" type="number" min="1" value="1" required>
+        </div>
+
+        <div class="field">
+          <label>Valor total da venda</label>
+          <input id="saleTotal" type="number" min="0" step="0.01" placeholder="12,00" required>
+        </div>
+
+        <div class="field">
+          <label>Pagamento</label>
+          <select id="salePayment">
+            <option>Pix</option>
+            <option>Cartão</option>
+            <option>Dinheiro</option>
+            <option>Outro</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Status do pagamento</label>
+          <select id="saleStatus">
+            <option value="Pendente">Pendente</option>
+            <option value="Pago">Pago</option>
+            <option value="Débito">Débito</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-light" onclick="closeSaleModal()">Cancelar</button>
+        <button class="btn btn-primary">Salvar venda</button>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <strong id="toastTitle">Pronto!</strong>
+  <span id="toastMessage"></span>
+</div>
+
+<script>
+let vendas = [];
+
+const money = value =>
+  new Intl.NumberFormat("pt-BR",{
+    style:"currency",
+    currency:"BRL"
+  }).format(Number(value)||0);
+
+function showToast(message,title="Pronto!"){
+  document.getElementById("toastTitle").textContent=title;
+  document.getElementById("toastMessage").textContent=message;
+
+  const toast=document.getElementById("toast");
+  toast.classList.add("show");
+
+  clearTimeout(window.toastTimer);
+
+  window.toastTimer=setTimeout(()=>{
+    toast.classList.remove("show");
+  },3000);
+}
+
+function openSaleModal(){
+
+  const hoje=new Date();
+
+  document.getElementById("saleDate").value=
+    hoje.toISOString().slice(0,10);
+
+  document.getElementById("saleCustomer").value="";
+  document.getElementById("saleProduct").value="";
+  document.getElementById("saleQty").value=1;
+  document.getElementById("saleTotal").value="";
+  document.getElementById("saleStatus").value="Pendente";
+
+  document.getElementById("saleModal").classList.add("show");
+}
+
+function closeSaleModal(){
+  document.getElementById("saleModal").classList.remove("show");
+}
+
+function atualizarStatusFirebase(){
+
+  const status=document.getElementById("firebaseStatus");
+  const dot=document.getElementById("statusDot");
+
+  if(window.firebaseReady){
+
+    status.textContent="Firebase conectado";
+    dot.classList.add("online");
+
+  }else{
+
+    status.textContent="Configure o Firebase";
+    dot.classList.remove("online");
+
+  }
+}
+
+async function carregarVendas(){
+
+  if(!window.firebaseReady){
+
+    vendas=[];
+    render();
+    return;
+  }
+
+  try{
+
+    const {
+      collection,
+      getDocs,
+      query,
+      orderBy
+    }=window.firebaseFns;
+
+    const q=query(
+      collection(window.firebaseDB,"vendas"),
+      orderBy("data","desc")
+    );
+
+    const snapshot=await getDocs(q);
+
+    vendas=snapshot.docs.map(doc=>({
+      id:doc.id,
+      ...doc.data()
+    }));
+
+    render();
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      "Não foi possível carregar as vendas.",
+      "Erro"
+    );
+
+  }
+}
+
+async function salvarVenda(venda){
+
+  if(!window.firebaseReady){
+
+    showToast(
+      "Configure as informações do Firebase antes de salvar.",
+      "Firebase não configurado"
+    );
+
+    return false;
+  }
+
+  try{
+
+    const {
+      collection,
+      addDoc,
+      serverTimestamp
+    }=window.firebaseFns;
+
+    await addDoc(
+      collection(window.firebaseDB,"vendas"),
+      {
+        ...venda,
+        criadoEm:serverTimestamp()
+      }
+    );
+
+    return true;
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      "Não foi possível salvar a venda.",
+      "Erro"
+    );
+
+    return false;
+  }
+}
+
+document.getElementById("saleForm").addEventListener("submit",async function(event){
+
+  event.preventDefault();
+
+  const venda={
+
+    data:document.getElementById("saleDate").value,
+
+    cliente:
+      document.getElementById("saleCustomer").value.trim()
+      || "Cliente",
+
+    produto:
+      document.getElementById("saleProduct").value.trim(),
+
+    quantidade:
+      Number(document.getElementById("saleQty").value)||1,
+
+    total:
+      Number(document.getElementById("saleTotal").value)||0,
+
+    pagamento:
+      document.getElementById("salePayment").value,
+
+    statusPagamento:
+      document.getElementById("saleStatus").value,
+
+    origem:"Manual"
+
+  };
+
+  const salvo=await salvarVenda(venda);
+
+  if(!salvo)return;
+
+  closeSaleModal();
+
+  await carregarVendas();
+
+  showToast(
+    "A venda foi registrada com sucesso.",
+    "Venda registrada"
+  );
+
+});
+
+function render(){
+
+  const total=vendas.reduce(
+    (s,v)=>s+Number(v.total||0),
+    0
+  );
+
+  const pedidos=vendas.length;
+
+  const ticket=
+    pedidos ? total/pedidos : 0;
+
+  const hoje=new Date().toISOString().slice(0,10);
+
+  const faturamentoHoje=
+    vendas
+    .filter(v=>v.data===hoje)
+    .reduce((s,v)=>s+Number(v.total||0),0);
+
+  const recebido=vendas
+    .filter(v=>(v.statusPagamento||"Pendente")==="Pago")
+    .reduce((s,v)=>s+Number(v.total||0),0);
+
+  const pendente=vendas
+    .filter(v=>(v.statusPagamento||"Pendente")==="Pendente")
+    .reduce((s,v)=>s+Number(v.total||0),0);
+
+  const debito=vendas
+    .filter(v=>(v.statusPagamento||"Pendente")==="Débito")
+    .reduce((s,v)=>s+Number(v.total||0),0);
+
+  document.getElementById("revenue").textContent=money(total);
+  document.getElementById("orders").textContent=pedidos;
+  document.getElementById("ticket").textContent=money(ticket);
+  document.getElementById("today").textContent=money(faturamentoHoje);
+  document.getElementById("paidTotal").textContent=money(recebido);
+  document.getElementById("pendingTotal").textContent=money(pendente);
+  document.getElementById("debtTotal").textContent=money(debito);
+
+  renderChart();
+  renderPayments();
+  renderTable();
+}
+
+function renderChart(){
+
+  const chart=document.getElementById("salesChart");
+
+  if(!vendas.length){
+
+    chart.innerHTML=
+      '<div class="empty">Nenhuma venda registrada ainda.</div>';
+
+    return;
+  }
+
+  const mapa={};
+
+  vendas.forEach(v=>{
+
+    const data=v.data;
+
+    mapa[data]=
+      (mapa[data]||0)+Number(v.total||0);
+
+  });
+
+  const dias=Object.keys(mapa)
+    .sort()
+    .slice(-10);
+
+  const valores=dias.map(d=>mapa[d]);
+
+  const max=Math.max(...valores,1);
+
+  chart.innerHTML=dias.map((dia,i)=>{
+
+    const altura=
+      Math.max((valores[i]/max)*210,4);
+
+    const data=new Date(dia+"T12:00:00")
+      .toLocaleDateString("pt-BR",{
+        day:"2-digit",
+        month:"2-digit"
+      });
+
+    return `
+      <div class="bar-wrap">
+
+        <div class="bar-value">
+          ${money(valores[i])}
+        </div>
+
+        <div
+          class="bar"
+          style="height:${altura}px"
+          title="${money(valores[i])}"
+        ></div>
+
+        <div class="bar-label">
+          ${data}
+        </div>
+
+      </div>
+    `;
+
+  }).join("");
+
+}
+
+function renderPayments(){
+
+  const container=
+    document.getElementById("paymentList");
+
+  if(!vendas.length){
+
+    container.innerHTML=
+      '<div class="empty">Nenhuma venda registrada ainda.</div>';
+
+    return;
+  }
+
+  const mapa={};
+
+  vendas.forEach(v=>{
+
+    const forma=v.pagamento||"Outro";
+
+    mapa[forma]=
+      (mapa[forma]||0)+Number(v.total||0);
+
+  });
+
+  const total=
+    Object.values(mapa).reduce(
+      (a,b)=>a+b,0
+    );
+
+  container.innerHTML=
+    Object.entries(mapa)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([nome,valor])=>{
+
+      const porcentagem=
+        total ? (valor/total)*100 : 0;
+
+      return `
+        <div>
+
+          <div class="payment-row">
+
+            <strong>${nome}</strong>
+
+            <span>${money(valor)}</span>
+
+          </div>
+
+          <div class="payment-track">
+
+            <div
+              class="payment-fill"
+              style="width:${porcentagem}%"
+            ></div>
+
+          </div>
+
+        </div>
+      `;
+
+    }).join("");
+
+}
+
+async function atualizarStatusVenda(id, status){
+
+  if(!window.firebaseReady) return;
+
+  try {
+    const { doc, updateDoc } = window.firebaseFns;
+    await updateDoc(
+      doc(window.firebaseDB, "vendas", id),
+      { statusPagamento: status }
+    );
+
+    const venda = vendas.find(v => v.id === id);
+    if(venda) venda.statusPagamento = status;
+
+    render();
+    showToast("Status atualizado para " + status + ".", "Pagamento atualizado");
+  } catch(error) {
+    console.error(error);
+    showToast("Não foi possível atualizar o status.", "Erro");
+  }
+}
+
+function statusBadge(status){
+  const s = status || "Pendente";
+  const cls = s === "Pago" ? "status-paid" : s === "Débito" ? "status-debt" : "status-pending";
+  return `<select class="status-select ${cls}" onchange="atualizarStatusVenda('ID_PLACEHOLDER', this.value)">` +
+    `<option value="Pendente" ${s === "Pendente" ? "selected" : ""}>Pendente</option>` +
+    `<option value="Pago" ${s === "Pago" ? "selected" : ""}>Pago</option>` +
+    `<option value="Débito" ${s === "Débito" ? "selected" : ""}>Débito</option>` +
+    `</select>`;
+}
+
+function renderTable(){
+
+  const tbody=document.getElementById("salesTable");
+
+  if(!vendas.length){
+    tbody.innerHTML='<tr><td colspan="7" class="empty">Nenhuma venda registrada.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=vendas.slice(0,20).map(v=>{
+    const status=v.statusPagamento||"Pendente";
+    const cls=status==="Pago" ? "status-paid" : status==="Débito" ? "status-debt" : "status-pending";
+    return `
+      <tr>
+        <td>${new Date(v.data+"T12:00:00").toLocaleDateString("pt-BR")}</td>
+        <td>${v.cliente||"Cliente"}</td>
+        <td>${v.produto||""}${v.quantidade>1 ? " x"+v.quantidade : ""}</td>
+        <td>${v.pagamento||""}</td>
+        <td>
+          <select class="status-select ${cls}" onchange="atualizarStatusVenda('${v.id}', this.value)">
+            <option value="Pendente" ${status==="Pendente"?"selected":""}>Pendente</option>
+            <option value="Pago" ${status==="Pago"?"selected":""}>Pago</option>
+            <option value="Débito" ${status==="Débito"?"selected":""}>Débito</option>
+          </select>
+        </td>
+        <td><span class="badge">${v.origem||"Manual"}</span></td>
+        <td><strong>${money(v.total)}</strong></td>
+      </tr>`;
+  }).join("");
+}
+
+window.addEventListener("firebase-loaded",()=>{
+
+  atualizarStatusFirebase();
+  carregarVendas();
+
+});
+
+window.addEventListener("firebase-error",()=>{
+
+  atualizarStatusFirebase();
+
+});
+
+document.addEventListener("DOMContentLoaded",()=>{
+
+  setTimeout(()=>{
+
+    atualizarStatusFirebase();
+
+    if(window.firebaseReady){
+      carregarVendas();
+    }else{
+      render();
+    }
+
+  },500);
+
+});
+</script>
+
+</body>
+</html>
